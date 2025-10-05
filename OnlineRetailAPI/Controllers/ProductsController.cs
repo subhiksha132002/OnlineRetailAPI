@@ -53,7 +53,7 @@ namespace OnlineRetailAPI.Controllers
             dbContext.Products.Add(productEntity);
             dbContext.SaveChanges();
 
-            return Ok(productEntity);
+            return CreatedAtAction(nameof(GetProductById),new { id = productEntity.ProductId },productEntity);
         }
 
         [HttpPut]
@@ -94,7 +94,7 @@ namespace OnlineRetailAPI.Controllers
 
             dbContext.SaveChanges();
 
-            return Ok();
+            return NoContent();
         }
     }
 }

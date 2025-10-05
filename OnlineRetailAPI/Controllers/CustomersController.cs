@@ -20,7 +20,15 @@ namespace OnlineRetailAPI.Controllers
         [HttpGet]
         public IActionResult GetAllCustomers()
         {
-            var allCustomers = dbContext.Customers.ToList();
+            var allCustomers = dbContext.Customers.Select(c => new CustomerDto
+            {
+                CustomerId = c.CustomerId,
+                CustomerName = c.CustomerName,
+                Email = c.Email,
+                Address = c.Address,
+                PhoneNumber = c.PhoneNumber
+
+            }).ToList();
 
             return Ok(allCustomers);
         }
@@ -29,7 +37,14 @@ namespace OnlineRetailAPI.Controllers
         [Route("{id:int}")]
         public IActionResult GetCustomerById(int id)
         {
-            var customer = dbContext.Customers.Find(id);
+            var customer = dbContext.Customers.Where(c => c.CustomerId == id).Select(c => new CustomerDto
+            {
+                CustomerId = c.CustomerId,
+                CustomerName = c.CustomerName,
+                Email = c.Email,
+                Address = c.Address,
+                PhoneNumber = c.PhoneNumber
+            }).FirstOrDefault();
 
             if (customer is null)
             {
@@ -54,7 +69,21 @@ namespace OnlineRetailAPI.Controllers
             dbContext.Customers.Add(customerEntity);
             dbContext.SaveChanges();
 
-            return Ok(customerEntity);
+            var customer = dbContext.Customers.Where(c => c.CustomerId == customerEntity.CustomerId).Select(c => new CustomerDto
+            {
+                CustomerId = c.CustomerId,
+                CustomerName = c.CustomerName,
+                Email = c.Email,
+                Address = c.Address,
+                PhoneNumber = c.PhoneNumber
+            }).FirstOrDefault();
+
+            if(customer is null)
+            {
+                return NotFound();
+            }
+
+            return CreatedAtAction(nameof(GetCustomerById),new { id = customer.CustomerId },customer);
         }
 
         [HttpPut]
@@ -94,7 +123,7 @@ namespace OnlineRetailAPI.Controllers
 
             dbContext.SaveChanges();
 
-            return Ok();
+            return NoContent();
         }
     }
 }
