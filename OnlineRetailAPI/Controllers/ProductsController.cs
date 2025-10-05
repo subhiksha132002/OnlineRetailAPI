@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using OnlineRetailAPI.Data;
 using OnlineRetailAPI.Models;
 using OnlineRetailAPI.Models.Entities;
+using System.ComponentModel;
 
 namespace OnlineRetailAPI.Controllers
 {
@@ -24,6 +25,20 @@ namespace OnlineRetailAPI.Controllers
             return Ok(allProducts);
         }
 
+        [HttpGet]
+        [Route("{id:int}")]
+        public IActionResult GetProductById(int id)
+        {
+            var product = dbContext.Products.Find(id);
+
+            if(product is null)
+            {
+                return NotFound();
+            }
+
+            return Ok(product);
+        }
+
         [HttpPost]
         public IActionResult AddProduct(AddProductDto addProductDto)
         {
@@ -39,6 +54,47 @@ namespace OnlineRetailAPI.Controllers
             dbContext.SaveChanges();
 
             return Ok(productEntity);
+        }
+
+        [HttpPut]
+        [Route("{id:int}")]
+        public IActionResult UpdateProduct(int id,UpdateProductDto updateProductDto)
+        {
+           var product = dbContext.Products.Find(id);
+
+            if(product is null)
+            {
+                return NotFound();
+            }
+
+            product.ProductName = updateProductDto.ProductName;
+            product.ProductDescription = updateProductDto.ProductDescription;
+            product.ProductPrice = updateProductDto.ProductPrice;
+            product.StockQuantity = updateProductDto.StockQuantity;
+            product.ImageUrl = updateProductDto.ImageUrl;
+
+            dbContext.SaveChanges();
+
+            return Ok(product);
+        }
+
+        [HttpDelete]
+        [Route("{id:int}")]
+        public IActionResult DeleteProduct(int id)
+        {
+            var product = dbContext.Products.Find(id);
+
+            if(product is null)
+            {
+                return NotFound();
+
+            }
+
+            dbContext.Products.Remove(product);
+
+            dbContext.SaveChanges();
+
+            return Ok();
         }
     }
 }
