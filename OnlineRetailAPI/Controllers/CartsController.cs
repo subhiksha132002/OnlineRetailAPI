@@ -42,7 +42,31 @@ namespace OnlineRetailAPI.Controllers
 
         [HttpGet]
         [Route("{id:int}")]
-        public IActionResult GetCa
+        public IActionResult GetCartByCustomerId(int id)
+        {
+            var cart = dbContext.Carts.Include(c => c.Customer).Include(c => c.CartItems).ThenInclude(ci => ci.Product).FirstOrDefault(c => c.CustomerId == id);
+
+            if (cart is null)
+            {
+                return NotFound("Cart not found for the customer.");
+            }
+
+            var cartDto = new CartDto
+            {
+                CartId = cart.CartId,
+                CustomerId = cart.CustomerId,
+                CustomerName = cart.Customer.CustomerName,
+                Email = cart.Customer.Email,
+                Items = cart.CartItems.Select(ci => new CartItemDto
+                {
+                    ProductId = ci.ProductId,
+                    ProductName = ci.Product.ProductName,
+                    Quantity = ci.Quantity
+
+                }).ToList()
+            };
+            return Ok(cartDto);
+        }
 
         [HttpPost]
         public IActionResult AddItemToCart(AddCartItemDto addCartItemDto)
@@ -84,6 +108,53 @@ namespace OnlineRetailAPI.Controllers
             return Ok("Item added to Cart Successfully");
         }
 
+        [HttpPut]
+        [Route("{id:int}")]
+        public IActionResult UpdateItemInCart(UpdateCartItemDto updateCartItemDto)
+        {
+            var cart = dbContext.Carts.Include(c => c.CartItems).FirstOrDefault(c => c.CustomerId == updateCartItemDto.CustomerId);
+
+            if (cart is null)
+            {
+                return NotFound("Cart not found for the Customer.");
+
+            }
+
+            var item = cart.CartItems.FirstOrDefault(ci => ci.ProductId == updateCartItemDto.ProductId);
+
+            if (item is null)
+            {
+                return NotFound("Product not found in the cart");
+            }
+
+            item.Quantity = updateCartItemDto.Quantity;
+            dbContext.SaveChanges();
+
+            return Ok("Quantity updated successfully.");
+        }
+
+        [HttpDelete]
+        [Route("{customerId:int}")]
+        public IActionResult ClearCart(int customerId)
+        {
+            var cart = dbContext.Carts.Include(c => c.CartItems).FirstOrDefault(c => c.CustomerId == customerId);
+
+            if (cart is null)
+            {
+                return NotFound("Cart not found for this customer.");
+
+            }
+
+            if (!cart.CartItems.Any())
+            {
+                return Ok("Cart is already empty.");
+            }
+
+            dbContext.CartItems.RemoveRange(cart.CartItems);
+            dbContext.SaveChanges();
+
+            return Ok("Cart cleared successfully.");
+        }
 
     }
 }
