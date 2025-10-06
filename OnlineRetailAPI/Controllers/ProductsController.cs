@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using OnlineRetailAPI.Data;
 using OnlineRetailAPI.Models;
 using OnlineRetailAPI.Models.Entities;
@@ -18,18 +19,18 @@ namespace OnlineRetailAPI.Controllers
             this.dbContext = dbContext;
         }
         [HttpGet]
-        public IActionResult GetAllProducts()
+        public async Task<IActionResult> GetAllProducts()
         {
-            var allProducts = dbContext.Products.ToList();
+            var allProducts = await dbContext.Products.ToListAsync();
 
             return Ok(allProducts);
         }
 
         [HttpGet]
-        [Route("{id:int}")]
-        public IActionResult GetProductById(int id)
+        [Route("{productId:int}")]
+        public async Task<IActionResult> GetProductById(int productId)
         {
-            var product = dbContext.Products.Find(id);
+            var product = await dbContext.Products.FindAsync(productId);
 
             if(product is null)
             {
@@ -40,7 +41,7 @@ namespace OnlineRetailAPI.Controllers
         }
 
         [HttpPost]
-        public IActionResult AddProduct(AddProductDto addProductDto)
+        public async Task<IActionResult> AddProduct(AddProductDto addProductDto)
         {
             var productEntity = new Product()
             {
@@ -50,17 +51,17 @@ namespace OnlineRetailAPI.Controllers
                 StockQuantity = addProductDto.StockQuantity,
                 ImageUrl = addProductDto.ImageUrl
             };
-            dbContext.Products.Add(productEntity);
-            dbContext.SaveChanges();
+            await dbContext.Products.AddAsync(productEntity);
+            await dbContext.SaveChangesAsync();
 
             return CreatedAtAction(nameof(GetProductById),new { id = productEntity.ProductId },productEntity);
         }
 
         [HttpPut]
-        [Route("{id:int}")]
-        public IActionResult UpdateProduct(int id,UpdateProductDto updateProductDto)
+        [Route("{productId:int}")]
+        public async Task<IActionResult> UpdateProduct(int productId, UpdateProductDto updateProductDto)
         {
-           var product = dbContext.Products.Find(id);
+           var product = await dbContext.Products.FindAsync(productId);
 
             if(product is null)
             {
@@ -73,18 +74,18 @@ namespace OnlineRetailAPI.Controllers
             product.StockQuantity = updateProductDto.StockQuantity;
             product.ImageUrl = updateProductDto.ImageUrl;
 
-            dbContext.SaveChanges();
+            await dbContext.SaveChangesAsync();
 
             return Ok(product);
         }
 
         [HttpDelete]
-        [Route("{id:int}")]
-        public IActionResult DeleteProduct(int id)
+        [Route("{productId:int}")]
+        public async Task<IActionResult> DeleteProduct(int productId)
         {
-            var product = dbContext.Products.Find(id);
+            var product = await dbContext.Products.FindAsync(productId);
 
-            if(product is null)
+            if (product is null)
             {
                 return NotFound();
 
@@ -92,7 +93,7 @@ namespace OnlineRetailAPI.Controllers
 
             dbContext.Products.Remove(product);
 
-            dbContext.SaveChanges();
+            await dbContext.SaveChangesAsync();
 
             return NoContent();
         }

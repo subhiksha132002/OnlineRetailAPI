@@ -6,7 +6,7 @@
         public int CustomerId { get; set; }
         public Customer Customer { get; set; } = null!;
         public DateTime OrderDate { get; set; }
-        public int TotalAmount { get; set; }
+        public decimal TotalAmount { get; set; }
         public ICollection<OrderItem> OrderItems { get; set; } = new List<OrderItem>();
     }
 }

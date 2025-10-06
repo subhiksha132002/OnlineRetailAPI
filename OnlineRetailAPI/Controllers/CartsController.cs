@@ -41,10 +41,10 @@ namespace OnlineRetailAPI.Controllers
         }
 
         [HttpGet]
-        [Route("{id:int}")]
-        public IActionResult GetCartByCustomerId(int id)
+        [Route("{customerId:int}")]
+        public IActionResult GetCartByCustomerId(int customerId)
         {
-            var cart = dbContext.Carts.Include(c => c.Customer).Include(c => c.CartItems).ThenInclude(ci => ci.Product).FirstOrDefault(c => c.CustomerId == id);
+            var cart = dbContext.Carts.Include(c => c.Customer).Include(c => c.CartItems).ThenInclude(ci => ci.Product).FirstOrDefault(c => c.CustomerId == customerId);
 
             if (cart is null)
             {
@@ -108,8 +108,8 @@ namespace OnlineRetailAPI.Controllers
             return Ok("Item added to Cart Successfully");
         }
 
+        //To update quantity in cartitem
         [HttpPut]
-        [Route("{id:int}")]
         public IActionResult UpdateItemInCart(UpdateCartItemDto updateCartItemDto)
         {
             var cart = dbContext.Carts.Include(c => c.CartItems).FirstOrDefault(c => c.CustomerId == updateCartItemDto.CustomerId);

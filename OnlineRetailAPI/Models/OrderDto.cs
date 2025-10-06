@@ -9,8 +9,8 @@ namespace OnlineRetailAPI.Models
         public string CustomerName { get; set; } = null!;
         public string Email { get; set; } = null!;
         public DateTime OrderDate { get; set; }
-        public int TotalAmount { get; set; }
-        public List<OrderItemDto> Items { get; set; }
+        public decimal TotalAmount { get; set; }
+        public List<OrderItemDto> Items { get; set; } = new List<OrderItemDto>();
 
     }
 }
