@@ -19,9 +19,9 @@ namespace OnlineRetailAPI.Controllers
         }
 
         [HttpGet]
-        public IActionResult GetAllCarts()
+        public async Task<IActionResult> GetAllCarts()
         {
-            var carts = dbContext.Carts.Include(c => c.Customer).Include(c => c.CartItems).ThenInclude(ci => ci.Product).Select(c => new CartDto
+            var carts = await dbContext.Carts.Include(c => c.Customer).Include(c => c.CartItems).ThenInclude(ci => ci.Product).Select(c => new CartDto
             {
                 CartId = c.CartId,
                 CustomerId = c.CustomerId,
@@ -35,16 +35,16 @@ namespace OnlineRetailAPI.Controllers
                     ImageUrl = ci.Product.ImageUrl,
                     Quantity = ci.Quantity
                 }).ToList()
-            }).ToList();
+            }).ToListAsync();
 
             return Ok(carts);
         }
 
         [HttpGet]
         [Route("{customerId:int}")]
-        public IActionResult GetCartByCustomerId(int customerId)
+        public async Task<IActionResult> GetCartByCustomerId(int customerId)
         {
-            var cart = dbContext.Carts.Include(c => c.Customer).Include(c => c.CartItems).ThenInclude(ci => ci.Product).FirstOrDefault(c => c.CustomerId == customerId);
+            var cart = await dbContext.Carts.Include(c => c.Customer).Include(c => c.CartItems).ThenInclude(ci => ci.Product).FirstOrDefaultAsync(c => c.CustomerId == customerId);
 
             if (cart is null)
             {
@@ -69,9 +69,9 @@ namespace OnlineRetailAPI.Controllers
         }
 
         [HttpPost]
-        public IActionResult AddItemToCart(AddCartItemDto addCartItemDto)
+        public async Task<IActionResult> AddItemToCart(AddCartItemDto addCartItemDto)
         {
-            var cart = dbContext.Carts.Include(c => c.CartItems).FirstOrDefault(c => c.CustomerId == addCartItemDto.CustomerId);
+            var cart = await dbContext.Carts.Include(c => c.CartItems).FirstOrDefaultAsync(c => c.CustomerId == addCartItemDto.CustomerId);
 
             if (cart is null)
             {
@@ -80,8 +80,8 @@ namespace OnlineRetailAPI.Controllers
                     CustomerId = addCartItemDto.CustomerId
                 };
 
-                dbContext.Carts.Add(cart);
-                dbContext.SaveChanges();
+                await dbContext.Carts.AddAsync(cart);
+                await dbContext.SaveChangesAsync();
             }
 
             var existingItem = cart.CartItems.FirstOrDefault(ci => ci.ProductId == addCartItemDto.ProductId);
@@ -100,19 +100,19 @@ namespace OnlineRetailAPI.Controllers
                     Quantity = addCartItemDto.Quantity
                 };
 
-                dbContext.CartItems.Add(cartItem);
+                await dbContext.CartItems.AddAsync(cartItem);
                
             }
-            dbContext.SaveChanges();
+            await dbContext.SaveChangesAsync();
 
             return Ok("Item added to Cart Successfully");
         }
 
         //To update quantity in cartitem
         [HttpPut]
-        public IActionResult UpdateItemInCart(UpdateCartItemDto updateCartItemDto)
+        public async Task<IActionResult> UpdateItemInCart(UpdateCartItemDto updateCartItemDto)
         {
-            var cart = dbContext.Carts.Include(c => c.CartItems).FirstOrDefault(c => c.CustomerId == updateCartItemDto.CustomerId);
+            var cart = await dbContext.Carts.Include(c => c.CartItems).FirstOrDefaultAsync(c => c.CustomerId == updateCartItemDto.CustomerId);
 
             if (cart is null)
             {
@@ -128,16 +128,16 @@ namespace OnlineRetailAPI.Controllers
             }
 
             item.Quantity = updateCartItemDto.Quantity;
-            dbContext.SaveChanges();
+            await dbContext.SaveChangesAsync();
 
             return Ok("Quantity updated successfully.");
         }
 
         [HttpDelete]
         [Route("{customerId:int}")]
-        public IActionResult ClearCart(int customerId)
+        public async Task<IActionResult> ClearCart(int customerId)
         {
-            var cart = dbContext.Carts.Include(c => c.CartItems).FirstOrDefault(c => c.CustomerId == customerId);
+            var cart = await dbContext.Carts.Include(c => c.CartItems).FirstOrDefaultAsync(c => c.CustomerId == customerId);
 
             if (cart is null)
             {
@@ -151,7 +151,7 @@ namespace OnlineRetailAPI.Controllers
             }
 
             dbContext.CartItems.RemoveRange(cart.CartItems);
-            dbContext.SaveChanges();
+            await dbContext.SaveChangesAsync();
 
             return Ok("Cart cleared successfully.");
         }
