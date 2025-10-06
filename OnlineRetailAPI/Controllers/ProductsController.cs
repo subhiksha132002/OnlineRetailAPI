@@ -26,8 +26,7 @@ namespace OnlineRetailAPI.Controllers
             return Ok(allProducts);
         }
 
-        [HttpGet]
-        [Route("{productId:int}")]
+        [HttpGet("{productId:int}")]
         public async Task<IActionResult> GetProductById(int productId)
         {
             var product = await dbContext.Products.FindAsync(productId);
@@ -40,7 +39,7 @@ namespace OnlineRetailAPI.Controllers
             return Ok(product);
         }
 
-        [HttpPost]
+        [HttpPost("CreateProduct")]
         public async Task<IActionResult> AddProduct(AddProductDto addProductDto)
         {
             var productEntity = new Product()
@@ -57,8 +56,7 @@ namespace OnlineRetailAPI.Controllers
             return CreatedAtAction(nameof(GetProductById),new { productId = productEntity.ProductId },productEntity);
         }
 
-        [HttpPut]
-        [Route("{productId:int}")]
+        [HttpPut("{productId:int}/UpdateProduct")]
         public async Task<IActionResult> UpdateProduct(int productId, UpdateProductDto updateProductDto)
         {
            var product = await dbContext.Products.FindAsync(productId);
@@ -79,8 +77,7 @@ namespace OnlineRetailAPI.Controllers
             return Ok(product);
         }
 
-        [HttpDelete]
-        [Route("{productId:int}")]
+        [HttpDelete("{productId:int}/DeleteProduct")]
         public async Task<IActionResult> DeleteProduct(int productId)
         {
             var product = await dbContext.Products.FindAsync(productId);

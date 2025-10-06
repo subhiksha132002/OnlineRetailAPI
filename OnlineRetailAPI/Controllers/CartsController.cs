@@ -40,8 +40,7 @@ namespace OnlineRetailAPI.Controllers
             return Ok(carts);
         }
 
-        [HttpGet]
-        [Route("{customerId:int}")]
+        [HttpGet("{customerId:int}")]
         public async Task<IActionResult> GetCartByCustomerId(int customerId)
         {
             var cart = await dbContext.Carts.Include(c => c.Customer).Include(c => c.CartItems).ThenInclude(ci => ci.Product).FirstOrDefaultAsync(c => c.CustomerId == customerId);
@@ -68,7 +67,7 @@ namespace OnlineRetailAPI.Controllers
             return Ok(cartDto);
         }
 
-        [HttpPost]
+        [HttpPost("AddItemToCart")]
         public async Task<IActionResult> AddItemToCart(AddCartItemDto addCartItemDto)
         {
             var cart = await dbContext.Carts.Include(c => c.CartItems).FirstOrDefaultAsync(c => c.CustomerId == addCartItemDto.CustomerId);
@@ -109,7 +108,7 @@ namespace OnlineRetailAPI.Controllers
         }
 
         //To update quantity in cartitem
-        [HttpPut]
+        [HttpPut("UpdateQuantity")]
         public async Task<IActionResult> UpdateItemInCart(UpdateCartItemDto updateCartItemDto)
         {
             var cart = await dbContext.Carts.Include(c => c.CartItems).FirstOrDefaultAsync(c => c.CustomerId == updateCartItemDto.CustomerId);
@@ -133,8 +132,7 @@ namespace OnlineRetailAPI.Controllers
             return Ok("Quantity updated successfully.");
         }
 
-        [HttpDelete]
-        [Route("{customerId:int}")]
+        [HttpDelete("{customerId:int}/ClearCart")]
         public async Task<IActionResult> ClearCart(int customerId)
         {
             var cart = await dbContext.Carts.Include(c => c.CartItems).FirstOrDefaultAsync(c => c.CustomerId == customerId);

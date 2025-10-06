@@ -47,8 +47,7 @@ namespace OnlineRetailAPI.Controllers
             return Ok(orders);
         }
 
-        [HttpGet]
-        [Route("{orderId:int}")]
+        [HttpGet("{orderId:int}")]
         public async Task<IActionResult> GetOrderById(int orderId)
         {
             var order = await dbContext.Orders.Include(o => o.Customer).Include(o => o.OrderItems).ThenInclude(oi => oi.Product).Where(o => o.OrderId == orderId).Select(o => new OrderDto
@@ -78,7 +77,7 @@ namespace OnlineRetailAPI.Controllers
             return Ok(order);
         }
 
-        [HttpPost]
+        [HttpPost("PlaceOrder")]
         public async Task<IActionResult> PlaceOrder(AddOrderDto addOrderDto)
         {
             if (addOrderDto is null)

@@ -34,8 +34,7 @@ namespace OnlineRetailAPI.Controllers
             return Ok(allCustomers);
         }
 
-        [HttpGet]
-        [Route("{customerId:int}")]
+        [HttpGet("{customerId:int}")]
         public async Task<IActionResult> GetCustomerById(int customerId)
         {
             var customer = await dbContext.Customers.Where(c => c.CustomerId == customerId).Select(c => new CustomerDto
@@ -55,7 +54,7 @@ namespace OnlineRetailAPI.Controllers
             return Ok(customer);
         }
 
-        [HttpPost]
+        [HttpPost("CreateCustomer")]
         public async Task<IActionResult> AddCustomer(AddCustomerDto addCustomerDto)
         {
             var customerEntity = new Customer()
@@ -87,8 +86,7 @@ namespace OnlineRetailAPI.Controllers
             return CreatedAtAction(nameof(GetCustomerById),new { customerId = customer.CustomerId },customer);
         }
 
-        [HttpPut]
-        [Route("{customerId:int}")]
+        [HttpPut("{customerId:int}/UpdateCustomer")]
         public async Task<IActionResult> UpdateCustomer(int customerId, UpdateCustomerDto updateCustomerDto)
         {
             var customer = await dbContext.Customers.FindAsync(customerId);
@@ -108,8 +106,7 @@ namespace OnlineRetailAPI.Controllers
             return Ok(customer);
         }
 
-        [HttpDelete]
-        [Route("{customerId:int}")]
+        [HttpDelete("{customerId:int}/DeleteCustomer")]
         public async Task<IActionResult> DeleteCustomer(int customerId)
         {
             var customer = await dbContext.Customers.FindAsync(customerId);
