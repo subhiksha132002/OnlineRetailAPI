@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using OnlineRetailAPI.Data;
 using OnlineRetailAPI.Models;
 using OnlineRetailAPI.Models.Entities;
@@ -18,9 +19,9 @@ namespace OnlineRetailAPI.Controllers
             this.dbContext = dbContext;
         }
         [HttpGet]
-        public IActionResult GetAllCustomers()
+        public async Task<IActionResult> GetAllCustomers()
         {
-            var allCustomers = dbContext.Customers.Select(c => new CustomerDto
+            var allCustomers = await dbContext.Customers.Select(c => new CustomerDto
             {
                 CustomerId = c.CustomerId,
                 CustomerName = c.CustomerName,
@@ -28,23 +29,23 @@ namespace OnlineRetailAPI.Controllers
                 Address = c.Address,
                 PhoneNumber = c.PhoneNumber
 
-            }).ToList();
+            }).ToListAsync();
 
             return Ok(allCustomers);
         }
 
         [HttpGet]
-        [Route("{id:int}")]
-        public IActionResult GetCustomerById(int id)
+        [Route("{customerId:int}")]
+        public async Task<IActionResult> GetCustomerById(int customerId)
         {
-            var customer = dbContext.Customers.Where(c => c.CustomerId == id).Select(c => new CustomerDto
+            var customer = await dbContext.Customers.Where(c => c.CustomerId == customerId).Select(c => new CustomerDto
             {
                 CustomerId = c.CustomerId,
                 CustomerName = c.CustomerName,
                 Email = c.Email,
                 Address = c.Address,
                 PhoneNumber = c.PhoneNumber
-            }).FirstOrDefault();
+            }).FirstOrDefaultAsync();
 
             if (customer is null)
             {
@@ -55,7 +56,7 @@ namespace OnlineRetailAPI.Controllers
         }
 
         [HttpPost]
-        public IActionResult AddCustomer(AddCustomerDto addCustomerDto)
+        public async Task<IActionResult> AddCustomer(AddCustomerDto addCustomerDto)
         {
             var customerEntity = new Customer()
             {
@@ -66,17 +67,17 @@ namespace OnlineRetailAPI.Controllers
                 PhoneNumber = addCustomerDto.PhoneNumber
             };
 
-            dbContext.Customers.Add(customerEntity);
-            dbContext.SaveChanges();
+            await dbContext.Customers.AddAsync(customerEntity);
+            await dbContext.SaveChangesAsync();
 
-            var customer = dbContext.Customers.Where(c => c.CustomerId == customerEntity.CustomerId).Select(c => new CustomerDto
+            var customer = await dbContext.Customers.Where(c => c.CustomerId == customerEntity.CustomerId).Select(c => new CustomerDto
             {
                 CustomerId = c.CustomerId,
                 CustomerName = c.CustomerName,
                 Email = c.Email,
                 Address = c.Address,
                 PhoneNumber = c.PhoneNumber
-            }).FirstOrDefault();
+            }).FirstOrDefaultAsync();
 
             if(customer is null)
             {
@@ -87,10 +88,10 @@ namespace OnlineRetailAPI.Controllers
         }
 
         [HttpPut]
-        [Route("{id:int}")]
-        public IActionResult UpdateCustomer(int id, UpdateCustomerDto updateCustomerDto)
+        [Route("{customerId:int}")]
+        public async Task<IActionResult> UpdateCustomer(int customerId, UpdateCustomerDto updateCustomerDto)
         {
-            var customer = dbContext.Customers.Find(id);
+            var customer = await dbContext.Customers.FindAsync(customerId);
 
             if (customer is null)
             {
@@ -102,16 +103,16 @@ namespace OnlineRetailAPI.Controllers
             customer.Password = updateCustomerDto.Password;
             customer.Address = updateCustomerDto.Address;
             customer.PhoneNumber = updateCustomerDto.PhoneNumber;
-            dbContext.SaveChanges();
+            await dbContext.SaveChangesAsync();
 
             return Ok(customer);
         }
 
         [HttpDelete]
-        [Route("{id:int}")]
-        public IActionResult DeleteCustomer(int id)
+        [Route("{customerId:int}")]
+        public async Task<IActionResult> DeleteCustomer(int customerId)
         {
-            var customer = dbContext.Customers.Find(id);
+            var customer = await dbContext.Customers.FindAsync(customerId);
 
             if (customer is null)
             {
@@ -121,7 +122,7 @@ namespace OnlineRetailAPI.Controllers
 
             dbContext.Customers.Remove(customer);
 
-            dbContext.SaveChanges();
+            await dbContext.SaveChangesAsync();
 
             return NoContent();
         }
