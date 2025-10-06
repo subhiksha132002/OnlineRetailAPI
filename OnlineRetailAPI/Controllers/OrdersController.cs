@@ -21,9 +21,9 @@ namespace OnlineRetailAPI.Controllers
         }
 
         [HttpGet]
-        public IActionResult GetAllOrders()
+        public async Task<IActionResult> GetAllOrders()
         {
-            var orders = dbContext.Orders.Include(o => o.Customer).Include(o => o.OrderItems).ThenInclude(oi => oi.Product).Select(o => new OrderDto
+            var orders = await dbContext.Orders.Include(o => o.Customer).Include(o => o.OrderItems).ThenInclude(oi => oi.Product).Select(o => new OrderDto
             {
                 OrderId = o.OrderId,
                 CustomerId = o.CustomerId,
@@ -42,16 +42,16 @@ namespace OnlineRetailAPI.Controllers
 
                 }).ToList()
 
-            }).ToList();
+            }).ToListAsync();
 
             return Ok(orders);
         }
 
         [HttpGet]
         [Route("{orderId:int}")]
-        public IActionResult GetOrderById(int orderId)
+        public async Task<IActionResult> GetOrderById(int orderId)
         {
-            var order = dbContext.Orders.Include(o => o.Customer).Include(o => o.OrderItems).ThenInclude(oi => oi.Product).Where(o => o.OrderId == orderId).Select(o => new OrderDto
+            var order = await dbContext.Orders.Include(o => o.Customer).Include(o => o.OrderItems).ThenInclude(oi => oi.Product).Where(o => o.OrderId == orderId).Select(o => new OrderDto
             {
                 OrderId = o.OrderId,
                 CustomerId = o.CustomerId,
@@ -68,7 +68,7 @@ namespace OnlineRetailAPI.Controllers
                     Quantity = oi.Quantity,
                     SubTotal = oi.SubTotal
                 }).ToList()
-            }).FirstOrDefault();
+            }).FirstOrDefaultAsync();
 
             if (order is null)
             {
@@ -79,28 +79,28 @@ namespace OnlineRetailAPI.Controllers
         }
 
         [HttpPost]
-        public IActionResult PlaceOrder(AddOrderDto addOrderDto)
+        public async Task<IActionResult> PlaceOrder(AddOrderDto addOrderDto)
         {
             if (addOrderDto is null)
             {
                 return BadRequest("Invalid order data.");
             }
 
-            // Step 1: Check if the customer exists
-            var customer = dbContext.Customers.FirstOrDefault(c => c.CustomerId == addOrderDto.CustomerId);
+            
+            var customer = await dbContext.Customers.FirstOrDefaultAsync(c => c.CustomerId == addOrderDto.CustomerId);
             if (customer is null)
             {
                 return NotFound("Customer not found.");
             }
 
-            // Step 2: Get Cart Items for the customer
-            var cart = dbContext.Carts.Include(c => c.CartItems).FirstOrDefault(c => c.CustomerId == addOrderDto.CustomerId);
+            
+            var cart = await dbContext.Carts.Include(c => c.CartItems).FirstOrDefaultAsync(c => c.CustomerId == addOrderDto.CustomerId);
             if (cart is null || !cart.CartItems.Any())
             {
                 return NotFound("No items in cart.");
             }
 
-            // Step 3: Create an Order
+            
             var order = new Order
             {
                 CustomerId = addOrderDto.CustomerId,
@@ -108,10 +108,10 @@ namespace OnlineRetailAPI.Controllers
                 TotalAmount = 0
             };
 
-            // Step 4: Process Cart Items into Order Items
+            
             foreach (var cartItem in cart.CartItems)
             {
-                var product = dbContext.Products.FirstOrDefault(p => p.ProductId == cartItem.ProductId);
+                var product = await dbContext.Products.FirstOrDefaultAsync(p => p.ProductId == cartItem.ProductId);
                 if (product is null)
                 {
                     return NotFound($"Product with ID {cartItem.ProductId} not found.");
@@ -130,12 +130,12 @@ namespace OnlineRetailAPI.Controllers
             }
 
             
-            dbContext.Orders.Add(order);
-            dbContext.SaveChanges();
+            await dbContext.Orders.AddAsync(order);
+            await dbContext.SaveChangesAsync();
 
             // Clear Cart Items After Order is Created
             dbContext.CartItems.RemoveRange(cart.CartItems);
-            dbContext.SaveChanges();
+            await dbContext.SaveChangesAsync();
 
             // Return Created Order
             var orderDto = new OrderDto
