@@ -84,7 +84,7 @@ namespace OnlineRetailAPI.Controllers
                 return NotFound();
             }
 
-            return CreatedAtAction(nameof(GetCustomerById),new { id = customer.CustomerId },customer);
+            return CreatedAtAction(nameof(GetCustomerById),new { customerId = customer.CustomerId },customer);
         }
 
         [HttpPut]

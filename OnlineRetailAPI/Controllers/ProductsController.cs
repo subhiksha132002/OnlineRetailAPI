@@ -54,7 +54,7 @@ namespace OnlineRetailAPI.Controllers
             await dbContext.Products.AddAsync(productEntity);
             await dbContext.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(GetProductById),new { id = productEntity.ProductId },productEntity);
+            return CreatedAtAction(nameof(GetProductById),new { productId = productEntity.ProductId },productEntity);
         }
 
         [HttpPut]
