@@ -2,8 +2,9 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using OnlineRetailAPI.Data;
-using OnlineRetailAPI.Models;
+using OnlineRetailAPI.Models.DTOs;
 using OnlineRetailAPI.Models.Entities;
+using OnlineRetailAPI.Services.Interfaces;
 using System.ComponentModel;
 
 namespace OnlineRetailAPI.Controllers
@@ -12,16 +13,16 @@ namespace OnlineRetailAPI.Controllers
     [ApiController]
     public class ProductsController : ControllerBase
     {
-        private readonly ApplicationDbContext dbContext;
+        private readonly IProductService _productService;
 
-        public ProductsController(ApplicationDbContext dbContext)
+        public ProductsController(IProductService _productService)
         {
-            this.dbContext = dbContext;
+            this._productService = _productService;
         }
         [HttpGet]
         public async Task<IActionResult> GetAllProducts()
         {
-            var allProducts = await dbContext.Products.ToListAsync();
+            var allProducts = await _productService.GetAllProductsAsync();
 
             return Ok(allProducts);
         }
@@ -29,7 +30,7 @@ namespace OnlineRetailAPI.Controllers
         [HttpGet("{productId:int}")]
         public async Task<IActionResult> GetProductById(int productId)
         {
-            var product = await dbContext.Products.FindAsync(productId);
+            var product = await _productService.GetProductByIdAsync(productId);
 
             if(product is null)
             {
@@ -42,37 +43,19 @@ namespace OnlineRetailAPI.Controllers
         [HttpPost("CreateProduct")]
         public async Task<IActionResult> AddProduct(AddProductDto addProductDto)
         {
-            var productEntity = new Product()
-            {
-                ProductName = addProductDto.ProductName,
-                ProductDescription = addProductDto.ProductDescription,
-                ProductPrice = addProductDto.ProductPrice,
-                StockQuantity = addProductDto.StockQuantity,
-                ImageUrl = addProductDto.ImageUrl
-            };
-            await dbContext.Products.AddAsync(productEntity);
-            await dbContext.SaveChangesAsync();
-
-            return CreatedAtAction(nameof(GetProductById),new { productId = productEntity.ProductId },productEntity);
+            var product = await _productService.AddProductAsync(addProductDto);
+            return CreatedAtAction(nameof(GetProductById),new { productId = product.ProductId },product);
         }
 
         [HttpPut("{productId:int}/UpdateProduct")]
         public async Task<IActionResult> UpdateProduct(int productId, UpdateProductDto updateProductDto)
         {
-           var product = await dbContext.Products.FindAsync(productId);
+           var product = await _productService.UpdateProductAsync(productId,updateProductDto);
 
             if(product is null)
             {
                 return NotFound();
-            }
-
-            product.ProductName = updateProductDto.ProductName;
-            product.ProductDescription = updateProductDto.ProductDescription;
-            product.ProductPrice = updateProductDto.ProductPrice;
-            product.StockQuantity = updateProductDto.StockQuantity;
-            product.ImageUrl = updateProductDto.ImageUrl;
-
-            await dbContext.SaveChangesAsync();
+            }   
 
             return Ok(product);
         }
@@ -80,17 +63,13 @@ namespace OnlineRetailAPI.Controllers
         [HttpDelete("{productId:int}/DeleteProduct")]
         public async Task<IActionResult> DeleteProduct(int productId)
         {
-            var product = await dbContext.Products.FindAsync(productId);
+            var success = await _productService.DeleteProductAsync(productId);
 
-            if (product is null)
+            if (!success)
             {
                 return NotFound();
 
             }
-
-            dbContext.Products.Remove(product);
-
-            await dbContext.SaveChangesAsync();
 
             return NoContent();
         }

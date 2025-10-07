@@ -1,4 +1,4 @@
-﻿namespace OnlineRetailAPI.Models
+﻿namespace OnlineRetailAPI.Models.DTOs
 {
     public class CartDto
     {

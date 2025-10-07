@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using OnlineRetailAPI.Data;
+using OnlineRetailAPI.Services.Implementations;
+using OnlineRetailAPI.Services.Interfaces;
 
 var builder = WebApplication.CreateBuilder(args);
 var MyAllowSpecificOrigins = "_myAllowSpecificOrigins";
@@ -11,6 +13,9 @@ builder.Services.AddControllers()
     {
         options.JsonSerializerOptions.PropertyNamingPolicy = null; // Keeps PascalCase in JSON
     });
+
+builder.Services.AddScoped<IProductService, ProductService>();
+
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();

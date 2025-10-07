@@ -1,6 +1,6 @@
-﻿namespace OnlineRetailAPI.Models
+﻿namespace OnlineRetailAPI.Models.DTOs
 {
-    public class AddCartItemDto
+    public class UpdateCartItemDto
     {
         public int CustomerId { get; set; }
         public int ProductId { get; set; }
