@@ -1,12 +1,7 @@
-﻿using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Http.Features;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using OnlineRetailAPI.Data;
-using OnlineRetailAPI.Models;
+﻿using Microsoft.AspNetCore.Mvc;
 using OnlineRetailAPI.Models.DTOs;
-using OnlineRetailAPI.Models.Entities;
-using System.ComponentModel.DataAnnotations;
+using OnlineRetailAPI.Services.Interfaces;
+
 
 namespace OnlineRetailAPI.Controllers
 {
@@ -14,150 +9,40 @@ namespace OnlineRetailAPI.Controllers
     [ApiController]
     public class OrdersController : ControllerBase
     {
-        private readonly ApplicationDbContext dbContext;
+        private readonly IOrderService _orderService;
 
-        public OrdersController(ApplicationDbContext dbContext)
+        public OrdersController(IOrderService orderService)
         {
-            this.dbContext = dbContext;
+            _orderService = orderService;
         }
 
         [HttpGet]
         public async Task<IActionResult> GetAllOrders()
         {
-            var orders = await dbContext.Orders.Include(o => o.Customer).Include(o => o.OrderItems).ThenInclude(oi => oi.Product).Select(o => new OrderDto
-            {
-                OrderId = o.OrderId,
-                CustomerId = o.CustomerId,
-                CustomerName = o.Customer.CustomerName,
-                Email = o.Customer.Email,
-                OrderDate = o.OrderDate,
-                TotalAmount = o.TotalAmount,
-                Items = o.OrderItems.Select(oi => new OrderItemDto
-                {
-                    ProductId = oi.ProductId,
-                    ProductName = oi.Product.ProductName,
-                    ProductPrice = oi.Product.ProductPrice,
-                    ImageUrl = oi.Product.ImageUrl,
-                    Quantity = oi.Quantity,
-                    SubTotal = oi.SubTotal
-
-                }).ToList()
-
-            }).ToListAsync();
-
+            var orders = await _orderService.GetAllOrdersAsync();
             return Ok(orders);
         }
 
         [HttpGet("{orderId:int}")]
         public async Task<IActionResult> GetOrderById(int orderId)
         {
-            var order = await dbContext.Orders.Include(o => o.Customer).Include(o => o.OrderItems).ThenInclude(oi => oi.Product).Where(o => o.OrderId == orderId).Select(o => new OrderDto
-            {
-                OrderId = o.OrderId,
-                CustomerId = o.CustomerId,
-                CustomerName = o.Customer.CustomerName,
-                Email = o.Customer.Email,
-                OrderDate = o.OrderDate,
-                TotalAmount = o.TotalAmount,
-                Items = o.OrderItems.Select(oi => new OrderItemDto
-                {
-                    ProductId = oi.ProductId,
-                    ProductName = oi.Product.ProductName,
-                    ProductPrice = oi.Product.ProductPrice,
-                    ImageUrl = oi.Product.ImageUrl,
-                    Quantity = oi.Quantity,
-                    SubTotal = oi.SubTotal
-                }).ToList()
-            }).FirstOrDefaultAsync();
-
-            if (order is null)
-            {
-                return NotFound();
-            }
-
+            var order = await _orderService.GetOrderByIdAsync(orderId);
+            if (order == null)
+                return NotFound(new { message = "Order not found." });
             return Ok(order);
         }
 
         [HttpPost("PlaceOrder")]
         public async Task<IActionResult> PlaceOrder(AddOrderDto addOrderDto)
         {
-            if (addOrderDto is null)
-            {
-                return BadRequest("Invalid order data.");
-            }
+            if (addOrderDto == null)
+                return BadRequest(new { message = "Invalid order data." });
 
-            
-            var customer = await dbContext.Customers.FirstOrDefaultAsync(c => c.CustomerId == addOrderDto.CustomerId);
-            if (customer is null)
-            {
-                return NotFound("Customer not found.");
-            }
+            var order = await _orderService.PlaceOrderAsync(addOrderDto);
+            if (order == null)
+                return NotFound(new { message = "Customer not found or cart is empty." });
 
-            
-            var cart = await dbContext.Carts.Include(c => c.CartItems).FirstOrDefaultAsync(c => c.CustomerId == addOrderDto.CustomerId);
-            if (cart is null || !cart.CartItems.Any())
-            {
-                return NotFound("No items in cart.");
-            }
-
-            
-            var order = new Order
-            {
-                CustomerId = addOrderDto.CustomerId,
-                OrderDate = DateTime.UtcNow,
-                TotalAmount = 0
-            };
-
-            
-            foreach (var cartItem in cart.CartItems)
-            {
-                var product = await dbContext.Products.FirstOrDefaultAsync(p => p.ProductId == cartItem.ProductId);
-                if (product is null)
-                {
-                    return NotFound($"Product with ID {cartItem.ProductId} not found.");
-                }
-
-                var orderItem = new OrderItem
-                {
-                    ProductId = product.ProductId,
-                    ProductPrice = product.ProductPrice,
-                    Quantity = cartItem.Quantity,
-                    SubTotal = product.ProductPrice * cartItem.Quantity
-                };
-
-                order.TotalAmount += orderItem.SubTotal;
-                order.OrderItems.Add(orderItem);
-            }
-
-            
-            await dbContext.Orders.AddAsync(order);
-            await dbContext.SaveChangesAsync();
-
-            // Clear Cart Items After Order is Created
-            dbContext.CartItems.RemoveRange(cart.CartItems);
-            await dbContext.SaveChangesAsync();
-
-            // Return Created Order
-            var orderDto = new OrderDto
-            {
-                OrderId = order.OrderId,
-                CustomerId = order.CustomerId,
-                CustomerName = customer.CustomerName,
-                Email = customer.Email,
-                OrderDate = order.OrderDate,
-                TotalAmount = order.TotalAmount,
-                Items = order.OrderItems.Select(oi => new OrderItemDto
-                {
-                    ProductId = oi.ProductId,
-                    ProductName = oi.Product.ProductName,
-                    ProductPrice = oi.ProductPrice,
-                    ImageUrl = oi.Product.ImageUrl,
-                    Quantity = oi.Quantity,
-                    SubTotal = oi.SubTotal
-                }).ToList()
-            };
-
-            return CreatedAtAction(nameof(GetOrderById), new { orderId = order.OrderId }, orderDto);
+            return CreatedAtAction(nameof(GetOrderById), new { orderId = order.OrderId }, order);
         }
 
     }

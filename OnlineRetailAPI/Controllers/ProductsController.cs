@@ -59,9 +59,9 @@ namespace OnlineRetailAPI.Controllers
         [HttpDelete("{productId:int}/DeleteProduct")]
         public async Task<IActionResult> DeleteProduct(int productId)
         {
-            var success = await _productService.DeleteProductAsync(productId);
+            var deleted = await _productService.DeleteProductAsync(productId);
 
-            if (!success)
+            if (!deleted)
             {
                 return NotFound();
 

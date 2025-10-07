@@ -1,5 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using OnlineRetailAPI.Data;
 using OnlineRetailAPI.Models.DTOs;
 using OnlineRetailAPI.Models.Entities;
@@ -44,7 +43,7 @@ namespace OnlineRetailAPI.Services.Implementations
             return productEntity;
         }
 
-        public async Task<Product> UpdateProductAsync(int productId, UpdateProductDto updateProductDto)
+        public async Task<Product?> UpdateProductAsync(int productId, UpdateProductDto updateProductDto)
         {
             var product = await _dbContext.Products.FindAsync(productId);
 
