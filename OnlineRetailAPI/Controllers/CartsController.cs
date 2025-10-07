@@ -29,6 +29,7 @@ namespace OnlineRetailAPI.Controllers
                 Email = c.Customer.Email,
                 Items = c.CartItems.Select(ci => new CartItemDto
                 {
+                    CartItemId = ci.CartItemId,
                     ProductId = ci.ProductId,
                     ProductName = ci.Product.ProductName,
                     ProductPrice = ci.Product.ProductPrice,
@@ -58,8 +59,11 @@ namespace OnlineRetailAPI.Controllers
                 Email = cart.Customer.Email,
                 Items = cart.CartItems.Select(ci => new CartItemDto
                 {
+                    CartItemId = ci.CartItemId,
                     ProductId = ci.ProductId,
                     ProductName = ci.Product.ProductName,
+                    ProductPrice = ci.Product.ProductPrice,
+                    ImageUrl = ci.Product.ImageUrl,
                     Quantity = ci.Quantity
 
                 }).ToList()
@@ -87,6 +91,7 @@ namespace OnlineRetailAPI.Controllers
 
             if (existingItem != null)
             {
+                //Update Quantity
                 existingItem.Quantity += addCartItemDto.Quantity;
             }
 
@@ -100,11 +105,11 @@ namespace OnlineRetailAPI.Controllers
                 };
 
                 await dbContext.CartItems.AddAsync(cartItem);
-               
+
             }
             await dbContext.SaveChangesAsync();
 
-            return Ok("Item added to Cart Successfully");
+            return Ok(new { message = "Item added to Cart Successfully" });
         }
 
         //To update quantity in cartitem
@@ -131,6 +136,32 @@ namespace OnlineRetailAPI.Controllers
 
             return Ok("Quantity updated successfully.");
         }
+
+        [HttpDelete("{customerId:int}/Items/{cartItemId:int}")]
+        public async Task<IActionResult> DeleteCartItem(int customerId,int cartItemId)
+        {
+            var cart = await dbContext.Carts.Include(c => c.CartItems).FirstOrDefaultAsync(c => c.CustomerId == customerId);
+
+            if (cart is null)
+            {
+                return NotFound("Cart not found for this customer.");
+
+            }
+
+            var cartItem = await dbContext.CartItems.FirstOrDefaultAsync(ci => ci.CartItemId == cartItemId && ci.CartId == cart.CartId);
+
+            if (cartItem == null)
+            {
+                return NotFound(new { message = "Cart item not found for this customer." });
+            }
+
+            dbContext.CartItems.Remove(cartItem);
+            await dbContext.SaveChangesAsync();
+
+            return Ok(new { message = "Cart item deleted successfully." });
+
+        }
+
 
         [HttpDelete("{customerId:int}/ClearCart")]
         public async Task<IActionResult> ClearCart(int customerId)

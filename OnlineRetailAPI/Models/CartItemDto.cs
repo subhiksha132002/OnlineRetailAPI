@@ -4,7 +4,7 @@ namespace OnlineRetailAPI.Models
 {
     public class CartItemDto
     {
-
+        public int CartItemId { get; set; }
         public int ProductId { get; set; }
         public string ProductName { get; set; } = null!;
         public decimal ProductPrice { get; set; }
