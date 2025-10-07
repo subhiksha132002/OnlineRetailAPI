@@ -7,8 +7,8 @@ namespace OnlineRetailAPI.Services.Interfaces
     {
         Task<IEnumerable<Product>> GetAllProductsAsync();
         Task<Product?> GetProductByIdAsync(int id);
-        Task<Product> AddProductAsync(AddProductDto dto);
-        Task<Product?> UpdateProductAsync(int id, UpdateProductDto dto);
+        Task<Product> AddProductAsync(AddProductDto addProductDto);
+        Task<Product?> UpdateProductAsync(int id, UpdateProductDto upadateProductDto);
         Task<bool> DeleteProductAsync(int id);
     }
 }

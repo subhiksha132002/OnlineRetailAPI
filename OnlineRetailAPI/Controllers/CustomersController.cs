@@ -1,10 +1,7 @@
-﻿using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using OnlineRetailAPI.Data;
+﻿using Microsoft.AspNetCore.Mvc;
 using OnlineRetailAPI.Models.DTOs;
-using OnlineRetailAPI.Models.Entities;
-using System.Net;
+using OnlineRetailAPI.Services.Interfaces;
+
 
 namespace OnlineRetailAPI.Controllers
 {
@@ -12,44 +9,26 @@ namespace OnlineRetailAPI.Controllers
     [ApiController]
     public class CustomersController : ControllerBase
     {
-        private readonly ApplicationDbContext dbContext;
+        private readonly ICustomerService _customerService;
 
-        public CustomersController(ApplicationDbContext dbContext)
+        public CustomersController(ICustomerService customerService)
         {
-            this.dbContext = dbContext;
+            this._customerService = customerService;
         }
         [HttpGet]
         public async Task<IActionResult> GetAllCustomers()
         {
-            var allCustomers = await dbContext.Customers.Select(c => new CustomerDto
-            {
-                CustomerId = c.CustomerId,
-                CustomerName = c.CustomerName,
-                Email = c.Email,
-                Address = c.Address,
-                PhoneNumber = c.PhoneNumber
-
-            }).ToListAsync();
-
+            var allCustomers = await _customerService.GetAllCustomersAsync();
             return Ok(allCustomers);
         }
 
         [HttpGet("{customerId:int}")]
         public async Task<IActionResult> GetCustomerById(int customerId)
         {
-            var customer = await dbContext.Customers.Where(c => c.CustomerId == customerId).Select(c => new CustomerDto
-            {
-                CustomerId = c.CustomerId,
-                CustomerName = c.CustomerName,
-                Email = c.Email,
-                Address = c.Address,
-                PhoneNumber = c.PhoneNumber
-            }).FirstOrDefaultAsync();
+            var customer = await _customerService.GetCustomerByIdAsync(customerId);
 
-            if (customer is null)
-            {
+            if (customer == null)
                 return NotFound();
-            }
 
             return Ok(customer);
         }
@@ -57,69 +36,33 @@ namespace OnlineRetailAPI.Controllers
         [HttpPost("CreateCustomer")]
         public async Task<IActionResult> AddCustomer(AddCustomerDto addCustomerDto)
         {
-            var customerEntity = new Customer()
-            {
-                CustomerName = addCustomerDto.CustomerName,
-                Email = addCustomerDto.Email,
-                Password = addCustomerDto.Password,
-                Address = addCustomerDto.Address,
-                PhoneNumber = addCustomerDto.PhoneNumber
-            };
+            var newCustomer = await _customerService.AddCustomerAsync(addCustomerDto);
 
-            await dbContext.Customers.AddAsync(customerEntity);
-            await dbContext.SaveChangesAsync();
-
-            var customer = await dbContext.Customers.Where(c => c.CustomerId == customerEntity.CustomerId).Select(c => new CustomerDto
-            {
-                CustomerId = c.CustomerId,
-                CustomerName = c.CustomerName,
-                Email = c.Email,
-                Address = c.Address,
-                PhoneNumber = c.PhoneNumber
-            }).FirstOrDefaultAsync();
-
-            if(customer is null)
-            {
-                return NotFound();
-            }
-
-            return CreatedAtAction(nameof(GetCustomerById),new { customerId = customer.CustomerId },customer);
+            return CreatedAtAction(
+                nameof(GetCustomerById),
+                new { customerId = newCustomer.CustomerId },
+                newCustomer
+            );
         }
 
         [HttpPut("{customerId:int}/UpdateCustomer")]
         public async Task<IActionResult> UpdateCustomer(int customerId, UpdateCustomerDto updateCustomerDto)
         {
-            var customer = await dbContext.Customers.FindAsync(customerId);
+            var updatedCustomer = await _customerService.UpdateCustomerAsync(customerId, updateCustomerDto);
 
-            if (customer is null)
-            {
+            if (updatedCustomer == null)
                 return NotFound();
-            }
 
-            customer.CustomerName = updateCustomerDto.CustomerName;
-            customer.Email = updateCustomerDto.Email;
-            customer.Password = updateCustomerDto.Password;
-            customer.Address = updateCustomerDto.Address;
-            customer.PhoneNumber = updateCustomerDto.PhoneNumber;
-            await dbContext.SaveChangesAsync();
-
-            return Ok(customer);
+            return Ok(updatedCustomer);
         }
 
         [HttpDelete("{customerId:int}/DeleteCustomer")]
         public async Task<IActionResult> DeleteCustomer(int customerId)
         {
-            var customer = await dbContext.Customers.FindAsync(customerId);
+            var deleted = await _customerService.DeleteCustomerAsync(customerId);
 
-            if (customer is null)
-            {
+            if (!deleted)
                 return NotFound();
-
-            }
-
-            dbContext.Customers.Remove(customer);
-
-            await dbContext.SaveChangesAsync();
 
             return NoContent();
         }

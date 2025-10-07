@@ -1,11 +1,7 @@
-﻿using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using OnlineRetailAPI.Data;
+﻿using Microsoft.AspNetCore.Mvc;
 using OnlineRetailAPI.Models.DTOs;
-using OnlineRetailAPI.Models.Entities;
 using OnlineRetailAPI.Services.Interfaces;
-using System.ComponentModel;
+
 
 namespace OnlineRetailAPI.Controllers
 {
