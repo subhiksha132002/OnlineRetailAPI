@@ -1,5 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using OnlineRetailAPI.Models.DTOs;
+using OnlineRetailAPI.Models.Entities;
+using OnlineRetailAPI.Services.Caching;
 using OnlineRetailAPI.Services.Interfaces;
 
 
@@ -10,16 +12,27 @@ namespace OnlineRetailAPI.Controllers
     public class ProductsController : ControllerBase
     {
         private readonly IProductService _productService;
+        private readonly IRedisCacheService _cache;
 
-        public ProductsController(IProductService _productService)
+        public ProductsController(IProductService _productService,IRedisCacheService cache)
         {
             this._productService = _productService;
+            this._cache = cache;
         }
         [HttpGet]
         public async Task<IActionResult> GetAllProducts()
         {
-            var allProducts = await _productService.GetAllProductsAsync();
+            var allProducts = _cache.GetData<IEnumerable<Product>>("products");
+            Console.WriteLine(allProducts);
 
+            if(allProducts is not null)
+            {
+                return Ok(allProducts);
+            }
+
+            allProducts = await _productService.GetAllProductsAsync();
+
+            _cache.SetData("products", allProducts);
             return Ok(allProducts);
         }
 
