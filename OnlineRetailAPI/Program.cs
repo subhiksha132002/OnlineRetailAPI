@@ -1,6 +1,5 @@
 using Microsoft.EntityFrameworkCore;
 using OnlineRetailAPI.Data;
-using OnlineRetailAPI.Services.Caching;
 using OnlineRetailAPI.Services.Implementations;
 using OnlineRetailAPI.Services.Interfaces;
 
@@ -18,8 +17,6 @@ builder.Services.AddControllers()
 builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<ICustomerService, CustomerService>();
 builder.Services.AddScoped<ICartService, CartService>();
-builder.Services.AddScoped<IOrderService, OrderService>();
-builder.Services.AddScoped<IRedisCacheService, RedisCacheService>();
 
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
