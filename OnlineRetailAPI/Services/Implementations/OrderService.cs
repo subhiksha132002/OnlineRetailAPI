@@ -1,22 +1,57 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Distributed;
 using OnlineRetailAPI.Data;
 using OnlineRetailAPI.Models.DTOs;
 using OnlineRetailAPI.Models.Entities;
 using OnlineRetailAPI.Services.Interfaces;
+using System.Text.Json;
 
 namespace OnlineRetailAPI.Services.Implementations
 {
     public class OrderService : IOrderService
     {
         private readonly ApplicationDbContext _dbContext;
+        private readonly IDistributedCache _cache;
+        private const string AllOrdersCacheKey = "orders";
+        private static string OrderCacheKey(int orderId) => $"order:{orderId}";
+        private static string OrdersOfCustomerCacheKey(int customerId) => $"orders:customer:{customerId}";
 
-        public OrderService(ApplicationDbContext dbContext)
+        public OrderService(ApplicationDbContext dbContext, IDistributedCache cache)
         {
             _dbContext = dbContext;
+            _cache = cache;
         }
+
+        private async Task<T?> GetFromCacheAsync<T>(string key)
+        {
+            var cachedData = await _cache.GetStringAsync(key);
+            return string.IsNullOrEmpty(cachedData) ? default : JsonSerializer.Deserialize<T>(cachedData);
+        }
+
+
+        private async Task SetToCacheAsync<T>(string key, T obj, TimeSpan expiration)
+        {
+            var options = new DistributedCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = expiration
+            };
+
+            string jsonData = JsonSerializer.Serialize(obj);
+            await _cache.SetStringAsync(key, jsonData, options);
+        }
+
+        private async Task RemoveFromCacheAsync(string key)
+        {
+            await _cache.RemoveAsync(key);
+        }
+
 
         public async Task<IEnumerable<OrderDto>> GetAllOrdersAsync()
         {
+            var cached = await GetFromCacheAsync<IEnumerable<OrderDto>>(AllOrdersCacheKey);
+            if (cached != null)
+                return cached;
+
             var orders = await _dbContext.Orders
                 .Include(o => o.Customer)
                 .Include(o => o.OrderItems)
@@ -40,11 +75,19 @@ namespace OnlineRetailAPI.Services.Implementations
                     }).ToList()
                 }).ToListAsync();
 
+            await SetToCacheAsync(AllOrdersCacheKey, orders, TimeSpan.FromMinutes(1));
+
             return orders;
         }
 
         public async Task<OrderDto?> GetOrderByIdAsync(int orderId)
         {
+            var cacheKey = OrderCacheKey(orderId);
+            var cached = await GetFromCacheAsync<OrderDto>(cacheKey);
+
+            if (cached != null)
+                return cached;
+
             var order = await _dbContext.Orders
                 .Include(o => o.Customer)
                 .Include(o => o.OrderItems)
@@ -69,6 +112,8 @@ namespace OnlineRetailAPI.Services.Implementations
                     }).ToList()
                 }).FirstOrDefaultAsync();
 
+
+            await SetToCacheAsync(cacheKey, order, TimeSpan.FromMinutes(1));
             return order;
         }
 
@@ -116,6 +161,10 @@ namespace OnlineRetailAPI.Services.Implementations
 
             _dbContext.CartItems.RemoveRange(cart.CartItems);
             await _dbContext.SaveChangesAsync();
+
+            await RemoveFromCacheAsync(AllOrdersCacheKey);
+            await RemoveFromCacheAsync(OrderCacheKey(order.OrderId));
+            await RemoveFromCacheAsync(OrdersOfCustomerCacheKey(addOrderDto.CustomerId));
 
             var placedOrder = await GetOrderByIdAsync(order.OrderId);
 

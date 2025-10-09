@@ -105,6 +105,8 @@ namespace OnlineRetailAPI.Services.Implementations
 
         public async Task<ProductResponseDto> AddProductAsync(AddProductDto addProductDto)
         {
+            await RemoveFromCacheAsync(AllProductsCacheKey);
+
             var productEntity = new Product()
             {
                 ProductName = addProductDto.ProductName,
@@ -115,8 +117,6 @@ namespace OnlineRetailAPI.Services.Implementations
             };
             await _dbContext.Products.AddAsync(productEntity);
             await _dbContext.SaveChangesAsync();
-
-            await RemoveFromCacheAsync(AllProductsCacheKey);
 
             var productDto = new ProductResponseDto
             {
@@ -133,11 +133,8 @@ namespace OnlineRetailAPI.Services.Implementations
         public async Task<ProductResponseDto?> UpdateProductAsync(int productId, UpdateProductDto updateProductDto)
         {
             var product = await _dbContext.Products.FindAsync(productId);
+            if (product == null) return null;
 
-            if (product is null)
-            {
-                return null;
-            }
 
             product.ProductName = updateProductDto.ProductName;
             product.ProductDescription = updateProductDto.ProductDescription;
@@ -147,7 +144,7 @@ namespace OnlineRetailAPI.Services.Implementations
 
             await _dbContext.SaveChangesAsync();
 
-            //Invalidate Caches
+            // Invalidate caches
             await RemoveFromCacheAsync(AllProductsCacheKey);
             await RemoveFromCacheAsync(ProductCacheKey(productId));
 

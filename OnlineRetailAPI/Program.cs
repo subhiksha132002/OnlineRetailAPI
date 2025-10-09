@@ -17,6 +17,7 @@ builder.Services.AddControllers()
 builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<ICustomerService, CustomerService>();
 builder.Services.AddScoped<ICartService, CartService>();
+builder.Services.AddScoped<IOrderService, OrderService>();
 
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle

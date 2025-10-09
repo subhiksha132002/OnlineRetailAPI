@@ -1,23 +1,61 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
+using Microsoft.Extensions.Caching.Distributed;
 using OnlineRetailAPI.Data;
 using OnlineRetailAPI.Models.DTOs;
 using OnlineRetailAPI.Models.Entities;
 using OnlineRetailAPI.Services.Interfaces;
+using System.Text.Json;
 
 namespace OnlineRetailAPI.Services.Implementations
 {
     public class CartService : ICartService
     {
         private readonly ApplicationDbContext _dbContext;
+        private readonly IDistributedCache _cache;
 
-        public CartService(ApplicationDbContext dbContext)
+        private const string AllCartsCacheKey = "carts";
+        private static string CartOfCustomerCacheKey(int customerId) => $"cart:customer:{customerId}";
+
+
+        public CartService(ApplicationDbContext dbContext, IDistributedCache cache)
         {
             _dbContext = dbContext;
+            _cache = cache;
         }
+
+        private async Task<T?> GetFromCacheAsync<T>(string key)
+        {
+            var cachedData = await _cache.GetStringAsync(key);
+            return string.IsNullOrEmpty(cachedData) ? default : JsonSerializer.Deserialize<T>(cachedData);
+        }
+
+
+        private async Task SetToCacheAsync<T>(string key, T obj, TimeSpan expiration)
+        {
+            var options = new DistributedCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = expiration
+            };
+
+            string jsonData = JsonSerializer.Serialize(obj);
+            await _cache.SetStringAsync(key, jsonData, options);
+        }
+
+        private async Task RemoveFromCacheAsync(string key)
+        {
+            await _cache.RemoveAsync(key);
+        }
+
 
         public async Task<IEnumerable<CartDto>> GetAllCartsAsync()
         {
-            return await _dbContext.Carts
+
+            var cached = await GetFromCacheAsync<IEnumerable<CartDto>>(AllCartsCacheKey);
+            if (cached != null)
+                return cached;
+
+            var cartsDto =  await _dbContext.Carts
                 .Include(c => c.Customer)
                 .Include(c => c.CartItems)
                     .ThenInclude(ci => ci.Product)
@@ -37,10 +75,19 @@ namespace OnlineRetailAPI.Services.Implementations
                         Quantity = ci.Quantity
                     }).ToList()
                 }).ToListAsync();
+
+            await SetToCacheAsync(AllCartsCacheKey, cartsDto, TimeSpan.FromMinutes(5));
+
+            return cartsDto;
         }
 
         public async Task<CartDto?> GetCartByCustomerIdAsync(int customerId)
         {
+            var cacheKey = CartOfCustomerCacheKey(customerId);
+            var cached = await GetFromCacheAsync<CartDto>(cacheKey);
+            if (cached != null)
+                return cached;
+
             var cart = await _dbContext.Carts
                 .Include(c => c.Customer)
                 .Include(c => c.CartItems)
@@ -49,7 +96,7 @@ namespace OnlineRetailAPI.Services.Implementations
 
             if (cart == null) return null;
 
-            return new CartDto
+            var cartDto =  new CartDto
             {
                 CartId = cart.CartId,
                 CustomerId = cart.CustomerId,
@@ -65,10 +112,17 @@ namespace OnlineRetailAPI.Services.Implementations
                     Quantity = ci.Quantity
                 }).ToList()
             };
+
+            await SetToCacheAsync(cacheKey, cartDto, TimeSpan.FromMinutes(5));
+            return cartDto;
         }
 
         public async Task AddItemToCartAsync(AddCartItemDto addCartDto)
         {
+            // Invalidate cache for all carts and this customer's cart
+            await RemoveFromCacheAsync(AllCartsCacheKey);
+            await RemoveFromCacheAsync(CartOfCustomerCacheKey(addCartDto.CustomerId));
+
             var cart = await _dbContext.Carts
                 .Include(c => c.CartItems)
                 .FirstOrDefaultAsync(c => c.CustomerId == addCartDto.CustomerId);
@@ -98,6 +152,10 @@ namespace OnlineRetailAPI.Services.Implementations
 
         public async Task<bool> UpdateItemQuantityAsync(UpdateCartItemDto updateCartItemDto)
         {
+            await RemoveFromCacheAsync(AllCartsCacheKey);
+            await RemoveFromCacheAsync(CartOfCustomerCacheKey(updateCartItemDto.CustomerId));
+
+
             var cart = await _dbContext.Carts
                 .Include(c => c.CartItems)
                 .FirstOrDefaultAsync(c => c.CustomerId == updateCartItemDto.CustomerId);
@@ -115,6 +173,10 @@ namespace OnlineRetailAPI.Services.Implementations
 
         public async Task<bool> DeleteCartItemAsync(int customerId, int cartItemId)
         {
+            await RemoveFromCacheAsync(AllCartsCacheKey);
+            await RemoveFromCacheAsync(CartOfCustomerCacheKey(customerId));
+
+
             var cart = await _dbContext.Carts
                 .Include(c => c.CartItems)
                 .FirstOrDefaultAsync(c => c.CustomerId == customerId);
@@ -132,6 +194,9 @@ namespace OnlineRetailAPI.Services.Implementations
 
         public async Task<bool> ClearCartAsync(int customerId)
         {
+            await RemoveFromCacheAsync(AllCartsCacheKey);
+            await RemoveFromCacheAsync(CartOfCustomerCacheKey(customerId));
+
             var cart = await _dbContext.Carts
                 .Include(c => c.CartItems)
                 .FirstOrDefaultAsync(c => c.CustomerId == customerId);
