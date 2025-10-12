@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using OnlineRetailAPI.Models.DTOs;
 using OnlineRetailAPI.Services.Interfaces;
 
@@ -17,6 +18,7 @@ namespace OnlineRetailAPI.Controllers
         }
 
         [HttpGet]
+        [Authorize(Policy = "AdminOnly")]
         public async Task<IActionResult> GetAllOrders()
         {
             var orders = await _orderService.GetAllOrdersAsync();
@@ -33,6 +35,7 @@ namespace OnlineRetailAPI.Controllers
         }
 
         [HttpPost("PlaceOrder")]
+        [Authorize]
         public async Task<IActionResult> PlaceOrder(AddOrderDto addOrderDto)
         {
             if (addOrderDto == null)

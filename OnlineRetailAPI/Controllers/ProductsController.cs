@@ -1,6 +1,8 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using OnlineRetailAPI.Models.DTOs;
 using OnlineRetailAPI.Services.Interfaces;
+using System.Security.AccessControl;
 
 
 namespace OnlineRetailAPI.Controllers
@@ -18,6 +20,7 @@ namespace OnlineRetailAPI.Controllers
         }
 
         [HttpGet]
+        [Authorize] //Accessible to all authenticated users
         public async Task<IActionResult> GetAllProducts()
         {
 
@@ -28,6 +31,7 @@ namespace OnlineRetailAPI.Controllers
 
 
         [HttpGet("{productId:int}")]
+        [Authorize] //Accessible to all authenticated users
         public async Task<IActionResult> GetProductById(int productId)
         {
            
@@ -42,6 +46,7 @@ namespace OnlineRetailAPI.Controllers
         }
 
         [HttpPost("CreateProduct")]
+        [Authorize(Policy = "AdminOnly")]
         public async Task<IActionResult> AddProduct(AddProductDto addProductDto)
         {
             var product = await _productService.AddProductAsync(addProductDto);
@@ -50,6 +55,7 @@ namespace OnlineRetailAPI.Controllers
         }
 
         [HttpPut("{productId:int}/UpdateProduct")]
+        [Authorize(Policy = "AdminOnly")]
         public async Task<IActionResult> UpdateProduct(int productId, UpdateProductDto updateProductDto)
         {
            var product = await _productService.UpdateProductAsync(productId,updateProductDto);
@@ -63,6 +69,7 @@ namespace OnlineRetailAPI.Controllers
         }
 
         [HttpDelete("{productId:int}/DeleteProduct")]
+        [Authorize(Policy = "AdminOnly")]
         public async Task<IActionResult> DeleteProduct(int productId)
         {
             var deleted = await _productService.DeleteProductAsync(productId);

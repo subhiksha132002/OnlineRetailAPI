@@ -1,5 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using OnlineRetailAPI.Models.DTOs;
 using OnlineRetailAPI.Services.Interfaces;
 
@@ -24,6 +24,7 @@ namespace OnlineRetailAPI.Controllers
         }
 
         [HttpGet("{customerId:int}")]
+        [Authorize]
         public async Task<IActionResult> GetCartByCustomerId(int customerId)
         {
             var cart = await _cartService.GetCartByCustomerIdAsync(customerId);
@@ -34,6 +35,7 @@ namespace OnlineRetailAPI.Controllers
         }
 
         [HttpPost("AddItemToCart")]
+        [Authorize]
         public async Task<IActionResult> AddItemToCart(AddCartItemDto addCartItemDto)
         {
             await _cartService.AddItemToCartAsync(addCartItemDto);
@@ -42,6 +44,7 @@ namespace OnlineRetailAPI.Controllers
 
         //To update quantity in cartitem
         [HttpPut("UpdateQuantity")]
+        [Authorize]
         public async Task<IActionResult> UpdateItemInCart(UpdateCartItemDto updateCartItemDto)
         {
             var success = await _cartService.UpdateItemQuantityAsync(updateCartItemDto);
@@ -52,6 +55,7 @@ namespace OnlineRetailAPI.Controllers
         }
 
         [HttpDelete("{customerId:int}/Items/{cartItemId:int}")]
+        [Authorize]
         public async Task<IActionResult> DeleteCartItem(int customerId,int cartItemId)
         {
             var success = await _cartService.DeleteCartItemAsync(customerId, cartItemId);
