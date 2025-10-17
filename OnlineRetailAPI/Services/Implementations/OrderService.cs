@@ -75,7 +75,7 @@ namespace OnlineRetailAPI.Services.Implementations
                     }).ToList()
                 }).ToListAsync();
 
-            await SetToCacheAsync(AllOrdersCacheKey, orders, TimeSpan.FromMinutes(1));
+            await SetToCacheAsync(AllOrdersCacheKey, orders, TimeSpan.FromMinutes(3));
 
             return orders;
         }
@@ -113,9 +113,48 @@ namespace OnlineRetailAPI.Services.Implementations
                 }).FirstOrDefaultAsync();
 
 
-            await SetToCacheAsync(cacheKey, order, TimeSpan.FromMinutes(1));
+            await SetToCacheAsync(cacheKey, order, TimeSpan.FromMinutes(3));
             return order;
         }
+
+        public async Task<IEnumerable<OrderDto>> GetOrdersByCustomerIdAsync(int customerId)
+        {
+            var cacheKey = OrdersOfCustomerCacheKey(customerId);
+            var cached = await GetFromCacheAsync<IEnumerable<OrderDto>>(cacheKey);
+
+            if (cached != null)
+                return cached;
+
+            var orders = await _dbContext.Orders
+                .Include(o => o.Customer)
+                .Include(o => o.OrderItems)
+                    .ThenInclude(oi => oi.Product)
+                .Where(o => o.CustomerId == customerId)
+                .OrderByDescending(o => o.OrderDate)
+                .Select(o => new OrderDto
+                {
+                    OrderId = o.OrderId,
+                    CustomerId = o.CustomerId,
+                    CustomerName = o.Customer.CustomerName,
+                    Email = o.Customer.Email,
+                    OrderDate = o.OrderDate,
+                    TotalAmount = o.TotalAmount,
+                    Items = o.OrderItems.Select(oi => new OrderItemDto
+                    {
+                        ProductId = oi.ProductId,
+                        ProductName = oi.Product.ProductName,
+                        ProductPrice = oi.Product.ProductPrice,
+                        ImageUrl = oi.Product.ImageUrl,
+                        Quantity = oi.Quantity,
+                        SubTotal = oi.SubTotal
+                    }).ToList()
+                }).ToListAsync();
+
+            await SetToCacheAsync(cacheKey, orders, TimeSpan.FromMinutes(3));
+
+            return orders;
+        }
+
 
         public async Task<OrderDto?> PlaceOrderAsync(AddOrderDto addOrderDto)
         {

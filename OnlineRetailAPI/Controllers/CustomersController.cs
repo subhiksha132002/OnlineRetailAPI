@@ -28,7 +28,19 @@ namespace OnlineRetailAPI.Controllers
             var customer = await _customerService.GetCustomerByIdAsync(customerId);
 
             if (customer == null)
-                return NotFound();
+                return NotFound(new { Message = "Customer not found" });
+
+            return Ok(customer);
+        }
+
+
+        [HttpGet("GetByEmail/{email}")]
+        public async Task<IActionResult> GetCustomerByEmail(string email)
+        {
+            var customer = await _customerService.GetCustomerByEmailAsync(email);
+
+            if (customer == null)
+                return NotFound(new { Message = "Customer not found" });
 
             return Ok(customer);
         }

@@ -7,6 +7,7 @@ namespace OnlineRetailAPI.Services.Interfaces
     {
         Task<IEnumerable<CustomerDto>> GetAllCustomersAsync();
         Task<CustomerDto?> GetCustomerByIdAsync(int id);
+        Task<CustomerDto?> GetCustomerByEmailAsync(string email);
         Task<CustomerDto> AddCustomerAsync(AddCustomerDto addCustomerDto);
         Task<CustomerDto?> UpdateCustomerAsync(int id, UpdateCustomerDto updateCustomerDto);
         Task<bool> DeleteCustomerAsync(int id);

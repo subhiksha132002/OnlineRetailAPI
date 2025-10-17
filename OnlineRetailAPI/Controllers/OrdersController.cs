@@ -34,6 +34,14 @@ namespace OnlineRetailAPI.Controllers
             return Ok(order);
         }
 
+        [HttpGet("Customer/{customerId}")]
+        [Authorize]
+        public async Task<IActionResult> GetOrdersByCustomerId(int customerId)
+        {
+            var orders = await _orderService.GetOrdersByCustomerIdAsync(customerId);
+            return Ok(orders);
+        }
+
         [HttpPost("PlaceOrder")]
         [Authorize]
         public async Task<IActionResult> PlaceOrder(AddOrderDto addOrderDto)

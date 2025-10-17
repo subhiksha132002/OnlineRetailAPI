@@ -1,5 +1,4 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.Extensions.Caching.Distributed;
 using OnlineRetailAPI.Data;
 using OnlineRetailAPI.Models.DTOs;
@@ -15,14 +14,17 @@ namespace OnlineRetailAPI.Services.Implementations
 
         private readonly IDistributedCache _cache;
 
+        private readonly IKeycloakAdminService _keycloakAdminService;
+
         private const string AllCustomersCacheKey = "customers";
         private static string CustomerCacheKey(int id) => $"customer:{id}";
 
 
-        public CustomerService(ApplicationDbContext dbContext,IDistributedCache cache)
+        public CustomerService(ApplicationDbContext dbContext,IDistributedCache cache, IKeycloakAdminService keycloakAdminService)
         {
             _dbContext = dbContext;
             _cache = cache;
+            _keycloakAdminService = keycloakAdminService;
         }
 
         private async Task<T?> GetFromCacheAsync<T>(string key)
@@ -101,33 +103,86 @@ namespace OnlineRetailAPI.Services.Implementations
             return customerDto;
         }
 
+        public async Task<CustomerDto?> GetCustomerByEmailAsync(string email)
+        {
+            var customer = await _dbContext.Customers
+                .FirstOrDefaultAsync(c => c.Email == email);
+
+            if (customer == null)
+                return null;
+
+            return new CustomerDto
+            {
+                CustomerId = customer.CustomerId,
+                CustomerName = customer.CustomerName,
+                Email = customer.Email,
+                PhoneNumber = customer.PhoneNumber,
+                Address = customer.Address
+            };
+        }
+
         public async Task<CustomerDto> AddCustomerAsync(AddCustomerDto addCustomerDto)
         {
-            var customerEntity = new Customer
+            using var transaction = await _dbContext.Database.BeginTransactionAsync();
+
+            try
             {
-                CustomerName = addCustomerDto.CustomerName,
-                Email = addCustomerDto.Email,
-                Password = addCustomerDto.Password,
-                Address = addCustomerDto.Address,
-                PhoneNumber = addCustomerDto.PhoneNumber
-            };
+                // Split customer name into first and last name
+                var nameParts = addCustomerDto.CustomerName.Split(' ', 2);
+                var firstName = nameParts[0];
+                var lastName = nameParts.Length > 1 ? nameParts[1] : "";
 
-            await _dbContext.Customers.AddAsync(customerEntity);
-            await _dbContext.SaveChangesAsync();
+                // Create user in Keycloak first
+                var keycloakUserId = await _keycloakAdminService.CreateUserAsync(
+                    firstName,
+                    lastName,
+                    addCustomerDto.Email,
+                    addCustomerDto.Email, // Using email as username
+                    addCustomerDto.Password ?? throw new ArgumentException("Password is required"),
+                    addCustomerDto.PhoneNumber,
+                    addCustomerDto.Address
+                );
 
-            await RemoveFromCacheAsync(AllCustomersCacheKey);
+                if (string.IsNullOrEmpty(keycloakUserId))
+                {
+                    throw new Exception("Failed to create user in Keycloak");
+                }
 
-            var customerDto =  new CustomerDto
+                // Create customer in database
+                var customerEntity = new Customer
+                {
+                    CustomerName = addCustomerDto.CustomerName,
+                    Email = addCustomerDto.Email,
+                    Password = addCustomerDto.Password,
+                    Address = addCustomerDto.Address,
+                    PhoneNumber = addCustomerDto.PhoneNumber,
+                    KeycloakUserId = keycloakUserId
+                };
+
+                await _dbContext.Customers.AddAsync(customerEntity);
+                await _dbContext.SaveChangesAsync();
+
+                await transaction.CommitAsync();
+                await RemoveFromCacheAsync(AllCustomersCacheKey);
+
+                var customerDto = new CustomerDto
+                {
+                    CustomerId = customerEntity.CustomerId,
+                    CustomerName = customerEntity.CustomerName,
+                    Email = customerEntity.Email,
+                    Address = customerEntity.Address,
+                    PhoneNumber = customerEntity.PhoneNumber
+                };
+
+                return customerDto;
+            }
+            catch (Exception ex)
             {
-                CustomerId = customerEntity.CustomerId,
-                CustomerName = customerEntity.CustomerName,
-                Email = customerEntity.Email,
-                Address = customerEntity.Address,
-                PhoneNumber = customerEntity.PhoneNumber
-            };
-
-            return customerDto;
+                await transaction.RollbackAsync();
+                throw new Exception($"Failed to create customer: {ex.Message}", ex);
+            }
         }
+
 
         public async Task<CustomerDto?> UpdateCustomerAsync(int customerId, UpdateCustomerDto updateCustomerDto)
         {

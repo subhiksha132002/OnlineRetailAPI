@@ -1,4 +1,6 @@
-﻿namespace OnlineRetailAPI.Models.Entities
+﻿using System.ComponentModel.DataAnnotations.Schema;
+
+namespace OnlineRetailAPI.Models.Entities
 {
     public class Order
     {
@@ -6,6 +8,8 @@
         public int CustomerId { get; set; }
         public Customer Customer { get; set; } = null!;
         public DateTime OrderDate { get; set; }
+
+        [Column(TypeName = "decimal(18,2)")]
         public decimal TotalAmount { get; set; }
         public string Status { get; set; } = "Pending";
         public ICollection<OrderItem> OrderItems { get; set; } = new List<OrderItem>();
