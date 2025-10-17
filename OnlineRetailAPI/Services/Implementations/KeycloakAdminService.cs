@@ -1,73 +1,34 @@
-﻿using OnlineRetailAPI.Models.Keycloak;
+﻿using FS.Keycloak.RestApiClient.Api;
+using FS.Keycloak.RestApiClient.Authentication.ClientFactory;
+using FS.Keycloak.RestApiClient.Authentication.Flow;
+using FS.Keycloak.RestApiClient.ClientFactory;
+using FS.Keycloak.RestApiClient.Model;
 using OnlineRetailAPI.Services.Interfaces;
-using System.Net.Http.Headers;
-using System.Text;
-using System.Text.Json;
 
 namespace OnlineRetailAPI.Services.Implementations
 {
     public class KeycloakAdminService : IKeycloakAdminService
     {
-        private readonly HttpClient _httpClient;
         private readonly IConfiguration _configuration;
+        private readonly ILogger<KeycloakAdminService> _logger;
         private readonly string _adminUrl;
         private readonly string _realm;
         private readonly string _serviceAccountClientId;
         private readonly string _serviceAccountClientSecret;
-        private readonly ILogger<KeycloakAdminService> _logger;
 
-        public KeycloakAdminService(HttpClient httpClient, IConfiguration configuration, ILogger<KeycloakAdminService> logger)
+        public KeycloakAdminService(IConfiguration configuration, ILogger<KeycloakAdminService> logger)
         {
-            _httpClient = httpClient;
             _configuration = configuration;
             _logger = logger;
             _adminUrl = _configuration["Keycloak:AdminUrl"] ?? throw new InvalidOperationException("Keycloak:AdminUrl not configured");
             _realm = _configuration["Keycloak:Realm"] ?? throw new InvalidOperationException("Keycloak:Realm not configured");
             _serviceAccountClientId = _configuration["Keycloak:ServiceAccount:ClientId"] ?? throw new InvalidOperationException("Keycloak:ServiceAccount:ClientId not configured");
             _serviceAccountClientSecret = _configuration["Keycloak:ServiceAccount:ClientSecret"] ?? throw new InvalidOperationException("Keycloak:ServiceAccount:ClientSecret not configured");
+
+
+            _logger.LogInformation("KeycloakAdminService initialized");
         }
 
-        private async Task<string> GetServiceAccountTokenAsync()
-        {
-            try
-            {
-                // Use the realm's token endpoint (not master realm)
-                var tokenUrl = $"{_adminUrl}/realms/{_realm}/protocol/openid-connect/token";
-
-                var content = new FormUrlEncodedContent(new[]
-                {
-                    new KeyValuePair<string, string>("client_id", _serviceAccountClientId),
-                    new KeyValuePair<string, string>("client_secret", _serviceAccountClientSecret),
-                    new KeyValuePair<string, string>("grant_type", "client_credentials")
-                });
-
-                var response = await _httpClient.PostAsync(tokenUrl, content);
-                var responseContent = await response.Content.ReadAsStringAsync();
-
-                if (!response.IsSuccessStatusCode)
-                {
-                    _logger.LogError("Failed to get service account token. Status: {StatusCode}, Response: {Response}",
-                        response.StatusCode, responseContent);
-                    throw new Exception($"Failed to get service account token. Status: {response.StatusCode}");
-                }
-
-                var tokenResponse = JsonSerializer.Deserialize<JsonElement>(responseContent);
-                var accessToken = tokenResponse.GetProperty("access_token").GetString();
-
-                if (string.IsNullOrEmpty(accessToken))
-                {
-                    throw new Exception("Access token is null or empty");
-                }
-
-                _logger.LogInformation("Successfully obtained service account token");
-                return accessToken;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting service account token: {Message}", ex.Message);
-                throw new Exception($"Error getting service account token: {ex.Message}", ex);
-            }
-        }
 
         public async Task<string?> CreateClientAsync(
             string clientId,
@@ -78,10 +39,25 @@ namespace OnlineRetailAPI.Services.Implementations
         {
             try
             {
-                var token = await GetServiceAccountTokenAsync();
-                var url = $"{_adminUrl}/admin/realms/{_realm}/clients";
+                var keycloakUrl = _adminUrl;
+                var realm = _realm;
+                var serviceClientId = _serviceAccountClientId;
+                var serviceClientSecret = _serviceAccountClientSecret;
 
-                var clientPayload = new KeycloakClient
+                _logger.LogInformation("Creating client with URL: {Url}, Realm: {Realm}", keycloakUrl, realm);
+
+                var credentials = new ClientCredentialsFlow
+                {
+                    KeycloakUrl = keycloakUrl,
+                    Realm = realm,
+                    ClientId = serviceClientId,
+                    ClientSecret = serviceClientSecret
+                };
+
+                using var httpClient = AuthenticationHttpClientFactory.Create(credentials);
+                using var clientsApi = ApiClientFactory.Create<ClientsApi>(httpClient);
+
+                var clientRepresentation = new ClientRepresentation
                 {
                     ClientId = clientId,
                     Enabled = true,
@@ -91,37 +67,23 @@ namespace OnlineRetailAPI.Services.Implementations
                     StandardFlowEnabled = standardFlowEnabled
                 };
 
-                var jsonContent = JsonSerializer.Serialize(clientPayload, new JsonSerializerOptions
+                _logger.LogInformation("Creating client: {ClientId}", clientId);
+
+
+                await clientsApi.PostClientsAsync(realm, clientRepresentation);
+
+               
+                var clients = await clientsApi.GetClientsAsync(realm, clientId: clientId);
+
+                if (clients != null && clients.Count > 0)
                 {
-                    DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
-                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-                });
-
-                _logger.LogInformation("Creating client with payload: {Payload}", jsonContent);
-
-                var httpContent = new StringContent(jsonContent, Encoding.UTF8, "application/json");
-
-                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-
-                var response = await _httpClient.PostAsync(url, httpContent);
-
-                if (response.IsSuccessStatusCode)
-                {
-                    var locationHeader = response.Headers.Location?.ToString();
-                    _logger.LogInformation("Client creation Location header: {Location}", locationHeader);
-
-                    if (locationHeader != null)
-                    {
-                        var createdClientId = locationHeader.Split('/').Last();
-                        _logger.LogInformation("Created client ID: {ClientId}", createdClientId);
-                        return createdClientId;
-                    }
+                    var createdClient = clients[0];
+                    _logger.LogInformation("Client created successfully with ID: {Id}", createdClient.Id);
+                    return createdClient.Id;
                 }
 
-                var errorContent = await response.Content.ReadAsStringAsync();
-                _logger.LogError("Failed to create client. Status: {StatusCode}, Response: {Error}",
-                    response.StatusCode, errorContent);
-                throw new Exception($"Failed to create client in Keycloak: {response.StatusCode} - {errorContent}");
+                _logger.LogWarning("Client created but could not retrieve ID");
+                return null;
             }
             catch (Exception ex)
             {
@@ -141,16 +103,32 @@ namespace OnlineRetailAPI.Services.Implementations
         {
             try
             {
-                var token = await GetServiceAccountTokenAsync();
-                var url = $"{_adminUrl}/admin/realms/{_realm}/users";
+                var keycloakUrl = _adminUrl;
+                var realm = _realm;
+                var serviceClientId = _serviceAccountClientId;
+                var serviceClientSecret = _serviceAccountClientSecret;
 
+                _logger.LogInformation("Creating user with URL: {Url}, Realm: {Realm}", keycloakUrl, realm);
+
+                var credentials = new ClientCredentialsFlow
+                {
+                    KeycloakUrl = keycloakUrl,
+                    Realm = realm,
+                    ClientId = serviceClientId,
+                    ClientSecret = serviceClientSecret
+                };
+
+                using var httpClient = AuthenticationHttpClientFactory.Create(credentials);
+                using var usersApi = ApiClientFactory.Create<UsersApi>(httpClient);
+
+                // custom attributes
                 var attributes = new Dictionary<string, List<string>>();
                 if (!string.IsNullOrEmpty(phoneNumber))
                     attributes["phoneNumber"] = new List<string> { phoneNumber };
                 if (!string.IsNullOrEmpty(address))
                     attributes["address"] = new List<string> { address };
 
-                var userPayload = new KeycloakUser
+                var userRepresentation = new UserRepresentation
                 {
                     Username = username,
                     Email = email,
@@ -159,9 +137,9 @@ namespace OnlineRetailAPI.Services.Implementations
                     Enabled = true,
                     EmailVerified = false,
                     Attributes = attributes.Count > 0 ? attributes : null,
-                    Credentials = new List<KeycloakCredentials>
+                    Credentials = new List<CredentialRepresentation>
                     {
-                        new KeycloakCredentials
+                        new CredentialRepresentation
                         {
                             Type = "password",
                             Value = password,
@@ -170,30 +148,23 @@ namespace OnlineRetailAPI.Services.Implementations
                     }
                 };
 
-                var jsonContent = JsonSerializer.Serialize(userPayload);
-                _logger.LogInformation("User payload JSON: {Payload}", jsonContent);
-                var httpContent = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+                _logger.LogInformation("Creating user: {Username}", username);
 
-                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-                var response = await _httpClient.PostAsync(url, httpContent);
+                
+                await usersApi.PostUsersAsync(realm, userRepresentation);
 
-                if (response.IsSuccessStatusCode)
+                
+                var users = await usersApi.GetUsersAsync(realm, username: username, exact: true);
+
+                if (users != null && users.Count > 0)
                 {
-                    var locationHeader = response.Headers.Location?.ToString();
-                    _logger.LogInformation("Location header received: {LocationHeader}", locationHeader);
-
-                    if (locationHeader != null)
-                    {
-                        var userId = locationHeader.Split('/').Last();
-                        _logger.LogInformation("Extracted User ID: {UserId}", userId);
-                        return userId;
-                    }
+                    var createdUser = users[0];
+                    _logger.LogInformation("User created successfully with ID: {Id}", createdUser.Id);
+                    return createdUser.Id;
                 }
 
-                var errorContent = await response.Content.ReadAsStringAsync();
-                _logger.LogError("Failed to create user. Status: {StatusCode}, Response: {Error}",
-                    response.StatusCode, errorContent);
-                throw new Exception($"Failed to create user in Keycloak: {response.StatusCode} - {errorContent}");
+                _logger.LogWarning("User created but could not retrieve ID");
+                return null;
             }
             catch (Exception ex)
             {
